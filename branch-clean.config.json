@@ -1,0 +1,17 @@
+{
+  "days": 365,
+  "protectedBranches": [
+    "production",
+    "staging", 
+    "master",
+    "main",
+    "develop"
+  ],
+  "forceDeleteBranches": [],
+  "protectedTags": [],
+  "forceDeleteTags": [],
+  "remoteName": "origin",
+  "dryRun": false,
+  "includeTags": true,
+  "cleanupAfterDelete": true
+}

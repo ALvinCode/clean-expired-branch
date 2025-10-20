@@ -1,4 +1,4 @@
-# CEB - Git 分支清理工具
+# clean-expired-branch （CEB） - Git 分支清理工具
 
 一个自动清理无用历史分支和标签的 npm 工具包，支持全局安装，自动识别 Git 项目，帮助您保持 Git 仓库的整洁和高效。
 
@@ -208,4 +208,3 @@ MIT License
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request 来改进这个工具！
-# clean-expired-branch
