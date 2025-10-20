@@ -60,7 +60,7 @@ ceb --days 30
 # 指定受保护的分支
 ceb --protected "production,staging,master,main"
 
-# 指定强制删除的分支
+# 指定强制删除的分支（注意：无法绕过服务器端保护）
 ceb --force-delete "temp-*,old-*"
 
 # 指定配置文件路径
@@ -208,6 +208,16 @@ A: 检查网络连接，确保可以访问远程仓库
 
 **Q: 分支删除失败**
 A: 检查分支是否正在被使用，或者有其他保护机制
+
+**Q: 使用 --force-delete 仍然删除失败**
+A: `--force-delete` 只能绕过工具内部的保护列表，无法绕过服务器端保护。受保护分支需要通过 GitLab/GitHub Web 界面删除
+
+**Q: GitLab 提示 "You can only delete protected branches using the web interface"**
+A: 这是 GitLab 的服务器端保护机制，需要通过 Web 界面删除：
+
+1. 登录 GitLab
+2. 进入项目 → Settings → Repository → Protected Branches
+3. 取消分支保护或删除分支
 
 **Q: 在非Git目录中运行**
 A: 使用 `cd` 命令切换到 Git 仓库目录，或者确保当前目录是 Git 仓库
