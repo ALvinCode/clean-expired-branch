@@ -70,11 +70,12 @@ function main() {
   }
 
   // 导入并执行主程序
-  const mainProgram = require('../index.js');
+  const program = require('../index.js');
   
   // 将命令行参数传递给主程序
-  process.argv = process.argv.slice(1); // 移除 'ceb' 参数
-  mainProgram();
+  // process.argv[0] 是 node，process.argv[1] 是 ceb.js，process.argv[2] 开始是用户参数
+  process.argv = ['node', 'ceb', ...process.argv.slice(2)];
+  program.parse();
 }
 
 // 执行主函数

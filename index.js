@@ -79,6 +79,7 @@ program
         console.log(chalk.red(`\n🗂️  本地分支 (${localBranches.length} 个):`));
         localBranches.forEach(branch => {
           console.log(`   ${chalk.red('✗')} ${branch.name} - ${branch.lastCommit} (${branch.author})`);
+          console.log(`      ${chalk.gray('📝')} ${branch.subject}`);
         });
       }
       
@@ -87,6 +88,7 @@ program
         console.log(chalk.red(`\n🌐 远程分支 (${remoteBranches.length} 个):`));
         remoteBranches.forEach(branch => {
           console.log(`   ${chalk.red('✗')} ${branch.name} - ${branch.lastCommit} (${branch.author})`);
+          console.log(`      ${chalk.gray('📝')} ${branch.subject}`);
         });
       }
       
@@ -95,6 +97,7 @@ program
         console.log(chalk.red(`\n🏷️  标签 (${tags.length} 个):`));
         tags.forEach(tag => {
           console.log(`   ${chalk.red('✗')} ${tag.name} - ${tag.createdDate} (${tag.author})`);
+          console.log(`      ${chalk.gray('📝')} ${tag.subject}`);
         });
       }
       
@@ -173,4 +176,10 @@ program
     }
   });
 
-program.parse();
+// 如果直接运行此文件，则解析命令行参数
+if (require.main === module) {
+  program.parse();
+}
+
+// 导出程序以便其他模块调用
+module.exports = program;
