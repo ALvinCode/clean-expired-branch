@@ -1,6 +1,6 @@
 {
   "name": "branch-clean",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "自动清理无用历史分支和标签的npm工具包",
   "main": "index.js",
   "bin": {
@@ -29,6 +29,9 @@
     "url": "https://github.com/your-username/branch-clean/issues"
   },
   "homepage": "https://github.com/your-username/branch-clean#readme",
+  "publishConfig": {
+    "registry": "https://verdaccio.atomecorp.net/"
+  },
   "dependencies": {
     "commander": "^11.1.0",
     "chalk": "^4.1.2",
