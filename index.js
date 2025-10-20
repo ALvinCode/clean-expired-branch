@@ -4,9 +4,6 @@ const { Command } = require('commander');
 const chalk = require('chalk');
 const inquirer = require('inquirer');
 const ora = require('ora');
-const fs = require('fs');
-const path = require('path');
-const { execSync, exec } = require('child_process');
 
 // 导入模块
 const BranchCleaner = require('./lib/branchCleaner');
@@ -109,25 +106,38 @@ program
       const cleanSpinner = ora('正在清理分支和标签...').start();
       
       try {
+        // 收集所有清理结果
+        const allResults = {
+          localBranches: { successCount: 0, failedCount: 0, failedItems: [] },
+          remoteBranches: { successCount: 0, failedCount: 0, failedItems: [] },
+          tags: { successCount: 0, failedCount: 0, failedItems: [] }
+        };
+        
         // 清理本地分支
         if (localBranches.length > 0) {
-          await branchCleaner.cleanLocalBranches(localBranches);
+          const result = await branchCleaner.cleanLocalBranches(localBranches);
+          allResults.localBranches = result;
         }
         
         // 清理远程分支
         if (remoteBranches.length > 0) {
-          await branchCleaner.cleanRemoteBranches(remoteBranches);
+          const result = await branchCleaner.cleanRemoteBranches(remoteBranches);
+          allResults.remoteBranches = result;
         }
         
         // 清理标签
         if (tags.length > 0) {
-          await tagCleaner.cleanTags(tags);
+          const result = await tagCleaner.cleanTags(tags);
+          allResults.tags = result;
         }
         
         // 执行收尾操作
         await previewer.performCleanup();
         
         cleanSpinner.succeed('清理完成');
+        
+        // 显示清理结果摘要
+        displayCleanupResults(allResults);
         
         // 获取清理后的统计信息
         const afterStats = await previewer.getRepositoryStats();
@@ -247,6 +257,68 @@ function groupItemsByDate(items, type) {
   });
   
   return groups;
+}
+
+// 显示清理结果摘要
+function displayCleanupResults(allResults) {
+  const totalSuccess = allResults.localBranches.successCount + 
+                      allResults.remoteBranches.successCount + 
+                      allResults.tags.successCount;
+  const totalFailed = allResults.localBranches.failedCount + 
+                     allResults.remoteBranches.failedCount + 
+                     allResults.tags.failedCount;
+  
+  console.log(chalk.cyan('\n📊 清理结果摘要:'));
+  console.log(`   ✅ 成功: ${totalSuccess} 个`);
+  console.log(`   ❌ 失败: ${totalFailed} 个`);
+  
+  // 显示各类别的详细结果
+  if (allResults.localBranches.successCount > 0 || allResults.localBranches.failedCount > 0) {
+    console.log(chalk.green(`   🗂️  本地分支: ${allResults.localBranches.successCount} 成功, ${allResults.localBranches.failedCount} 失败`));
+  }
+  if (allResults.remoteBranches.successCount > 0 || allResults.remoteBranches.failedCount > 0) {
+    console.log(chalk.green(`   🌐 远程分支: ${allResults.remoteBranches.successCount} 成功, ${allResults.remoteBranches.failedCount} 失败`));
+  }
+  if (allResults.tags.successCount > 0 || allResults.tags.failedCount > 0) {
+    console.log(chalk.green(`   🏷️  标签: ${allResults.tags.successCount} 成功, ${allResults.tags.failedCount} 失败`));
+  }
+  
+  // 显示失败详情
+  if (totalFailed > 0) {
+    console.log(chalk.red('\n❌ 删除失败的项目:'));
+    
+    // 本地分支失败
+    if (allResults.localBranches.failedItems.length > 0) {
+      console.log(chalk.red('\n   🗂️  本地分支:'));
+      allResults.localBranches.failedItems.forEach(item => {
+        console.log(`      - ${item.name}: ${item.error}`);
+      });
+    }
+    
+    // 远程分支失败
+    if (allResults.remoteBranches.failedItems.length > 0) {
+      console.log(chalk.red('\n   🌐 远程分支:'));
+      allResults.remoteBranches.failedItems.forEach(item => {
+        console.log(`      - ${item.name}: ${item.error}`);
+        if (item.error.includes('protected') || item.error.includes('pre-receive hook declined')) {
+          console.log(chalk.yellow(`        💡 提示: 可能是受保护分支，需要通过 Web 界面删除`));
+        }
+      });
+    }
+    
+    // 标签失败
+    if (allResults.tags.failedItems.length > 0) {
+      console.log(chalk.red('\n   🏷️  标签:'));
+      allResults.tags.failedItems.forEach(item => {
+        console.log(`      - ${item.name}: ${item.error}`);
+      });
+    }
+    
+    console.log(chalk.yellow('\n💡 解决建议:'));
+    console.log(`   1. 检查失败项目是否正在被使用`);
+    console.log(`   2. 确认您有删除权限`);
+    console.log(`   3. 受保护分支/标签需要通过 Web 界面删除`);
+  }
 }
 
 // 如果直接运行此文件，则解析命令行参数

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const { execSync } = require('child_process');
-const path = require('path');
 const chalk = require('chalk');
 
 // 检查是否在 Git 仓库中
