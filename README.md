@@ -1,0 +1,211 @@
+# CEB - Git 分支清理工具
+
+一个自动清理无用历史分支和标签的 npm 工具包，支持全局安装，自动识别 Git 项目，帮助您保持 Git 仓库的整洁和高效。
+
+## 功能特性
+
+- 🗂️ **智能分支清理**: 自动识别并清理超过指定时间未更新的本地和远程分支
+- 🏷️ **标签管理**: 支持清理过期的 Git 标签
+- 🛡️ **保护机制**: 可配置受保护的分支和标签，防止误删重要分支
+- 🔍 **预览模式**: 执行删除前可预览即将清理的内容
+- 📊 **统计对比**: 显示清理前后的仓库统计信息对比
+- ⚙️ **灵活配置**: 支持命令行参数和配置文件两种配置方式
+- 🎯 **强制删除**: 支持强制删除特定分支，即使它们在保护列表中
+- 🌍 **全局安装**: 支持全局安装，在任何 Git 仓库中使用 `ceb` 命令
+- 🔍 **自动识别**: 自动识别 Git 项目，非 Git 项目会提示错误
+
+## 安装
+
+### 全局安装（推荐）
+
+```bash
+# 从本地安装
+npm install -g .
+
+# 或者如果发布到 npm
+npm install -g branch-clean
+```
+
+### 本地安装
+
+```bash
+npm install
+```
+
+## 使用方法
+
+### 基本用法
+
+```bash
+# 使用默认配置（清理365天前的分支）
+ceb
+
+# 仅预览，不执行删除
+ceb --preview-only
+
+# 跳过确认，直接执行删除
+ceb --yes
+```
+
+### 命令行参数
+
+```bash
+# 指定清理时间范围（天）
+ceb --days 30
+
+# 指定受保护的分支
+ceb --protected "production,staging,master,main"
+
+# 指定强制删除的分支
+ceb --force-delete "temp-*,old-*"
+
+# 指定配置文件路径
+ceb --config ./my-config.json
+```
+
+### 配置文件
+
+创建 `branch-clean.config.json` 文件：
+
+```json
+{
+  "days": 365,
+  "protectedBranches": [
+    "production",
+    "staging", 
+    "master",
+    "main",
+    "develop"
+  ],
+  "forceDeleteBranches": [],
+  "protectedTags": [],
+  "forceDeleteTags": [],
+  "remoteName": "origin",
+  "dryRun": false,
+  "includeTags": true,
+  "cleanupAfterDelete": true
+}
+```
+
+## 配置说明
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `days` | number | 365 | 清理多少天前的分支/标签 |
+| `protectedBranches` | array | ["production", "staging", "master", "main", "develop"] | 受保护的分支列表 |
+| `forceDeleteBranches` | array | [] | 强制删除的分支列表（支持通配符） |
+| `protectedTags` | array | [] | 受保护的标签列表 |
+| `forceDeleteTags` | array | [] | 强制删除的标签列表（支持通配符） |
+| `remoteName` | string | "origin" | 远程仓库名称 |
+| `dryRun` | boolean | false | 仅预览模式 |
+| `includeTags` | boolean | true | 是否包含标签清理 |
+| `cleanupAfterDelete` | boolean | true | 删除后是否执行收尾清理 |
+
+## 使用示例
+
+### 示例1: 清理30天前的分支
+
+```bash
+ceb --days 30
+```
+
+### 示例2: 保护特定分支，强制删除其他分支
+
+```bash
+ceb --protected "main,develop" --force-delete "feature-*,hotfix-*"
+```
+
+### 示例3: 仅预览，不执行删除
+
+```bash
+ceb --preview-only
+```
+
+### 示例4: 在非Git目录中运行
+
+```bash
+$ ceb
+❌ 错误: 当前目录不是 Git 仓库
+💡 请在一个 Git 仓库中运行此命令
+   或者使用 cd 命令切换到 Git 仓库目录
+```
+
+## 输出示例
+
+```text
+🧹 CEB - Git 分支清理工具
+================================
+📁 仓库路径: /path/to/your/git/repo
+🌿 当前分支: main
+🌐 远程仓库: https://github.com/user/repo.git
+
+📋 配置信息:
+   清理时间范围: 365 天前
+   受保护分支: production, staging, master, main, develop
+
+📊 清理前统计:
+   提交数: 6667
+   分支数: 645
+   标签数: 5692
+   存储大小: 120.2 MiB
+
+🔍 预览要清理的内容:
+
+🗂️  本地分支 (5 个):
+   ✗ feature/user-auth - 2023-10-15T10:30:00+08:00 (张三)
+   ✗ feature/payment - 2023-11-20T14:45:00+08:00 (李四)
+
+🌐 远程分支 (3 个):
+   ✗ feature/old-feature - 2023-09-10T09:15:00+08:00 (王五)
+
+🏷️  标签 (2 个):
+   ✗ v1.0.0-beta - 2023-08-05T16:20:00+08:00 (赵六)
+
+? 确认要执行删除操作吗? (y/N)
+```
+
+## 安全特性
+
+- **预览模式**: 默认会显示所有即将删除的分支和标签
+- **确认机制**: 需要用户手动确认才会执行删除操作
+- **保护列表**: 重要分支默认受保护，不会被误删
+- **错误处理**: 删除过程中出现错误会立即停止并提示
+- **Git 检测**: 自动检测当前目录是否为 Git 仓库，非 Git 项目会提示错误
+- **自动定位**: 自动切换到 Git 仓库根目录执行清理
+
+## 注意事项
+
+1. **备份重要数据**: 执行删除前请确保重要分支已合并或备份
+2. **权限要求**: 删除远程分支需要相应的推送权限
+3. **网络连接**: 删除远程分支和标签需要网络连接
+4. **团队协作**: 在团队项目中使用前请与团队成员沟通
+5. **全局安装**: 建议全局安装以便在任何 Git 仓库中使用
+6. **配置文件**: 可以在项目根目录创建配置文件来自定义清理规则
+
+## 故障排除
+
+### 常见问题
+
+**Q: 提示权限不足**
+A: 确保您有删除远程分支的权限，或者联系仓库管理员
+
+**Q: 网络连接失败**
+A: 检查网络连接，确保可以访问远程仓库
+
+**Q: 分支删除失败**
+A: 检查分支是否正在被使用，或者有其他保护机制
+
+**Q: 在非Git目录中运行**
+A: 使用 `cd` 命令切换到 Git 仓库目录，或者确保当前目录是 Git 仓库
+
+**Q: 全局安装后命令不可用**
+A: 检查 npm 全局安装路径是否在 PATH 环境变量中
+
+## 许可证
+
+MIT License
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request 来改进这个工具！
+# clean-expired-branch
