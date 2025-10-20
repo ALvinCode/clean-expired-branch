@@ -38,8 +38,7 @@ program
       const configManager = new ConfigManager(configPath);
       const config = configManager.getConfig(options);
       
-      console.log(chalk.blue.bold('🧹 Git 分支清理工具'));
-      console.log(chalk.gray('================================\n'));
+      console.log(chalk.blue.bold("🧹 Git 分支清理配置信息\n"));
       
       // 显示配置信息
       console.log(chalk.yellow('📋 配置信息:'));
