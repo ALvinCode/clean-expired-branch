@@ -14,12 +14,15 @@ const TagCleaner = require('./lib/tagCleaner');
 const Previewer = require('./lib/previewer');
 const ConfigManager = require('./lib/configManager');
 
+// 从 package.json 读取版本号
+const packageJson = require('./package.json');
+
 const program = new Command();
 
 program
   .name('branch-clean')
   .description('自动清理无用历史分支和标签的工具')
-  .version('1.0.0');
+  .version(packageJson.version);
 
 program
   .option('-c, --config <path>', '配置文件路径')
