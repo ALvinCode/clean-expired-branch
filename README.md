@@ -1,4 +1,7 @@
-# clean-expired-branch （CEB） - Git 分支清理工具
+# CEB - Git 分支清理工具
+
+[![npm version](https://badge.fury.io/js/branch-clean.svg)](https://badge.fury.io/js/branch-clean)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 一个自动清理无用历史分支和标签的 npm 工具包，支持全局安装，自动识别 Git 项目，帮助您保持 Git 仓库的整洁和高效。
 
@@ -19,17 +22,18 @@
 ### 全局安装（推荐）
 
 ```bash
-# 从本地安装
-npm install -g .
-
-# 或者如果发布到 npm
+# 全局安装
 npm install -g branch-clean
 ```
 
-### 本地安装
+安装完成后，您可以在任何 Git 仓库中使用 `ceb` 命令：
 
 ```bash
-npm install
+# 验证安装
+ceb --version
+
+# 预览模式
+ceb --preview-only
 ```
 
 ## 使用方法
@@ -65,7 +69,9 @@ ceb --config ./my-config.json
 
 ### 配置文件
 
-创建 `branch-clean.config.json` 文件：
+配置文件是可选的。如果不创建配置文件，工具会使用默认配置。
+
+如果需要自定义配置，可以在Git仓库根目录创建 `branch-clean.config.json` 文件：
 
 ```json
 {
@@ -86,6 +92,14 @@ ceb --config ./my-config.json
   "cleanupAfterDelete": true
 }
 ```
+
+**配置文件查找顺序**：
+
+1. `./branch-clean.config.json` （项目根目录）
+2. `./.branch-clean.config.json` （项目根目录，隐藏文件）
+3. `./config/branch-clean.config.json` （config子目录）
+
+如果找到配置文件就使用，否则使用默认配置。
 
 ## 配置说明
 

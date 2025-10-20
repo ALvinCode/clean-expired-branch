@@ -19,8 +19,16 @@
     "maintenance",
     "ceb"
   ],
-  "author": "",
+  "author": "Zheng Kuo",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/branch-clean.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/branch-clean/issues"
+  },
+  "homepage": "https://github.com/your-username/branch-clean#readme",
   "dependencies": {
     "commander": "^11.1.0",
     "chalk": "^4.1.2",
