@@ -128,6 +128,9 @@ program
         // 清理标签
         if (tags.length > 0) {
           const result = await tagCleaner.cleanTags(tags);
+          if (result && !result.failedItems && result.failedTags) {
+            result.failedItems = result.failedTags;
+          }
           allResults.tags = result;
         }
         
@@ -136,8 +139,16 @@ program
         
         cleanSpinner.succeed('清理完成');
         
-        // 显示清理结果摘要
-        displayCleanupResults(allResults);
+        // 显示清理结果摘要（兼容 tags 结果字段名）
+        const normalized = {
+          localBranches: allResults.localBranches || { successCount: 0, failedCount: 0, failedItems: [] },
+          remoteBranches: allResults.remoteBranches || { successCount: 0, failedCount: 0, failedItems: [] },
+          tags: allResults.tags || { successCount: 0, failedCount: 0, failedItems: [] }
+        };
+        if (normalized.tags && !normalized.tags.failedItems && normalized.tags.failedTags) {
+          normalized.tags.failedItems = normalized.tags.failedTags;
+        }
+        displayCleanupResults(normalized);
         
         // 获取清理后的统计信息
         const afterStats = await previewer.getRepositoryStats();
