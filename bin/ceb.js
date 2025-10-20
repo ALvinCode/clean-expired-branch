@@ -29,11 +29,12 @@ function getGitRoot() {
 
 // 主函数
 function main() {
-  // 检查是否是版本命令
+  // 检查是否是版本命令或帮助命令
   const isVersionCommand = process.argv.includes('--version') || process.argv.includes('-V');
+  const isHelpCommand = process.argv.includes('--help') || process.argv.includes('-h');
   
-  // 如果是版本命令，直接执行不检查Git仓库
-  if (isVersionCommand) {
+  // 如果是版本命令或帮助命令，直接执行不检查Git仓库
+  if (isVersionCommand || isHelpCommand) {
     const program = require('../index.js');
     process.argv = ['node', 'ceb', ...process.argv.slice(2)];
     program.parse();

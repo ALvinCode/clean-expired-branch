@@ -31,6 +31,7 @@ program
   .option('-f, --force-delete <branches>', '强制删除的分支列表，用逗号分隔', '')
   .option('--preview-only', '仅预览，不执行删除')
   .option('--yes', '跳过确认，直接执行删除')
+  .option('--verbose', '显示详细的预览信息（不折叠）')
   .action(async (options) => {
     try {
       // 自动查找配置文件
@@ -76,32 +77,8 @@ program
         return;
       }
       
-      // 显示本地分支
-      if (localBranches.length > 0) {
-        console.log(chalk.red(`\n🗂️  本地分支 (${localBranches.length} 个):`));
-        localBranches.forEach(branch => {
-          console.log(`   ${chalk.red('✗')} ${branch.name} - ${branch.lastCommit} (${branch.author})`);
-          console.log(`      ${chalk.gray('📝')} ${branch.subject}`);
-        });
-      }
-      
-      // 显示远程分支
-      if (remoteBranches.length > 0) {
-        console.log(chalk.red(`\n🌐 远程分支 (${remoteBranches.length} 个):`));
-        remoteBranches.forEach(branch => {
-          console.log(`   ${chalk.red('✗')} ${branch.name} - ${branch.lastCommit} (${branch.author})`);
-          console.log(`      ${chalk.gray('📝')} ${branch.subject}`);
-        });
-      }
-      
-      // 显示标签
-      if (tags.length > 0) {
-        console.log(chalk.red(`\n🏷️  标签 (${tags.length} 个):`));
-        tags.forEach(tag => {
-          console.log(`   ${chalk.red('✗')} ${tag.name} - ${tag.createdDate} (${tag.author})`);
-          console.log(`      ${chalk.gray('📝')} ${tag.subject}`);
-        });
-      }
+      // 显示预览内容（带折叠功能）
+      displayPreviewContent(localBranches, remoteBranches, tags, options.verbose);
       
       // 如果只是预览模式，直接退出
       if (options.previewOnly) {
@@ -177,6 +154,100 @@ program
       process.exit(1);
     }
   });
+
+// 显示预览内容的函数（带折叠功能）
+function displayPreviewContent(localBranches, remoteBranches, tags, verbose = false) {
+  const totalItems = localBranches.length + remoteBranches.length + tags.length;
+  
+  // 如果使用 --verbose 参数或总数量较少，直接显示
+  if (verbose || totalItems <= 10) {
+    displayItemsDirectly(localBranches, remoteBranches, tags);
+    return;
+  }
+  
+  // 显示折叠的摘要信息
+  console.log(chalk.yellow(`\n📋 预览摘要 (共 ${totalItems} 项):`));
+  
+  if (localBranches.length > 0) {
+    console.log(chalk.red(`   🗂️  本地分支: ${localBranches.length} 个`));
+  }
+  if (remoteBranches.length > 0) {
+    console.log(chalk.red(`   🌐 远程分支: ${remoteBranches.length} 个`));
+  }
+  if (tags.length > 0) {
+    console.log(chalk.red(`   🏷️  标签: ${tags.length} 个`));
+  }
+  
+  console.log(chalk.gray('\n💡 提示: 使用 --verbose 参数查看详细信息'));
+}
+
+// 直接显示所有项目（无折叠）
+function displayItemsDirectly(localBranches, remoteBranches, tags) {
+  // 显示本地分支
+  if (localBranches.length > 0) {
+    console.log(chalk.red(`\n🗂️  本地分支 (${localBranches.length} 个):`));
+    displayBranchesWithGrouping(localBranches, 'local');
+  }
+  
+  // 显示远程分支
+  if (remoteBranches.length > 0) {
+    console.log(chalk.red(`\n🌐 远程分支 (${remoteBranches.length} 个):`));
+    displayBranchesWithGrouping(remoteBranches, 'remote');
+  }
+  
+  // 显示标签
+  if (tags.length > 0) {
+    console.log(chalk.red(`\n🏷️  标签 (${tags.length} 个):`));
+    displayBranchesWithGrouping(tags, 'tag');
+  }
+}
+
+// 显示分支/标签（支持按日期分组）
+function displayBranchesWithGrouping(items, type) {
+  if (items.length <= 50) {
+    // 数量较少，直接显示
+    items.forEach(item => {
+      const date = type === 'tag' ? item.createdDate : item.lastCommit;
+      const commitInfo = item.subject ? `📝 ${item.subject} | ` : '';
+      console.log(`   ${chalk.red('✗')} ${item.name} - ${date} | ${commitInfo}(${item.author})`);
+    });
+  } else {
+    // 数量较多，按日期分组
+    const groupedItems = groupItemsByDate(items, type);
+    
+    Object.keys(groupedItems).sort().forEach(dateGroup => {
+      const itemsInGroup = groupedItems[dateGroup];
+      console.log(chalk.gray(`   📅 ${dateGroup} (${itemsInGroup.length} 个):`));
+      
+      itemsInGroup.forEach(item => {
+        const date = type === 'tag' ? item.createdDate : item.lastCommit;
+        const commitInfo = item.subject ? `📝 ${item.subject} | ` : '';
+        console.log(`      ${chalk.red('✗')} ${item.name} - ${date} | ${commitInfo}(${item.author})`);
+      });
+    });
+  }
+}
+
+// 按日期分组项目
+function groupItemsByDate(items, type) {
+  const groups = {};
+  
+  items.forEach(item => {
+    const date = type === 'tag' ? item.createdDate : item.lastCommit;
+    const dateStr = new Date(date).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    
+    if (!groups[dateStr]) {
+      groups[dateStr] = [];
+    }
+    groups[dateStr].push(item);
+  });
+  
+  return groups;
+}
 
 // 如果直接运行此文件，则解析命令行参数
 if (require.main === module) {
