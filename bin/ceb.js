@@ -70,7 +70,6 @@ function main() {
       stdio: 'pipe'
     }).trim();
 
-    console.log(chalk.blue.bold("\n"));
     console.log(chalk.blue.bold('🧹 Git 待清理仓库与分支信息'));
     console.log(chalk.cyan(`📁 仓库路径: ${gitRoot}`));
     console.log(chalk.cyan(`🌿 当前分支: ${currentBranch}`));

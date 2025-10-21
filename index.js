@@ -313,7 +313,7 @@ function displayPreviewContent(localBranches, remoteBranches, tags, verbose = fa
   }
   
   // 显示折叠的摘要信息
-  console.log(chalk.yellow(`\n📋 预览摘要 (共 ${totalItems} 项):`));
+  console.log(chalk.yellow(`📋 预览摘要 (共 ${totalItems} 项):`));
   
   if (localBranches.length > 0) {
     console.log(chalk.red(`   🗂️  本地分支: ${localBranches.length} 个`));
@@ -325,7 +325,7 @@ function displayPreviewContent(localBranches, remoteBranches, tags, verbose = fa
     console.log(chalk.red(`   🏷️  标签: ${tags.length} 个`));
   }
   
-  console.log(chalk.gray('\n💡 提示: 使用 --verbose 参数查看详细信息'));
+  console.log(chalk.gray('\n💡 提示: 使用 --verbose 参数查看详细信息\n'));
 }
 
 // 直接显示所有项目（无折叠）
