@@ -2,7 +2,7 @@
   "days": 365,
   "protectedBranches": [
     "production",
-    "staging", 
+    "staging",
     "master",
     "main",
     "develop"
@@ -13,5 +13,6 @@
   "remoteName": "origin",
   "dryRun": false,
   "includeTags": true,
-  "cleanupAfterDelete": true
+  "cleanupAfterDelete": true,
+  "cleanTargets": ["all"]
 }

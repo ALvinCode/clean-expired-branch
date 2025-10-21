@@ -11,6 +11,47 @@ const TagCleaner = require('./lib/tagCleaner');
 const Previewer = require('./lib/previewer');
 const ConfigManager = require('./lib/configManager');
 
+// 清理目标映射和验证
+const CLEAN_TARGETS = {
+  'local-branches': 'local-branches',
+  'lb': 'local-branches',
+  'remote-branches': 'remote-branches', 
+  'rb': 'remote-branches',
+  'local-tags': 'local-tags',
+  'lt': 'local-tags',
+  'remote-tags': 'remote-tags',
+  'rt': 'remote-tags',
+  'all': 'all'
+};
+
+function validateCleanTargets(targets) {
+  const invalidTargets = [];
+  const validTargets = [];
+  
+  for (const target of targets) {
+    if (CLEAN_TARGETS[target]) {
+      validTargets.push(CLEAN_TARGETS[target]);
+    } else {
+      invalidTargets.push(target);
+    }
+  }
+  
+  if (invalidTargets.length > 0) {
+    const validOptions = Object.keys(CLEAN_TARGETS).map(key => 
+      key === CLEAN_TARGETS[key] ? key : `${key}(${CLEAN_TARGETS[key]})`
+    ).join(', ');
+    
+    throw new Error(`❌ 无效的清理目标: "${invalidTargets.join(', ')}"\n有效选项: ${validOptions}`);
+  }
+  
+  // 如果包含 'all'，则返回所有目标
+  if (validTargets.includes('all')) {
+    return ['local-branches', 'remote-branches', 'local-tags', 'remote-tags'];
+  }
+  
+  return [...new Set(validTargets)]; // 去重
+}
+
 // 从 package.json 读取版本号
 const packageJson = require('./package.json');
 
@@ -26,15 +67,40 @@ program
   .option('-d, --days <number>', '清理多少天前的分支/标签', '365')
   .option('-p, --protected <branches>', '受保护的分支列表，用逗号分隔')
   .option('-f, --force-delete <branches>', '强制删除的分支列表，用逗号分隔', '')
+  .option('-t, --clean-targets <targets>', '指定清理目标，用逗号分隔。支持: local-branches(lb), remote-branches(rb), local-tags(lt), remote-tags(rt), all', 'all')
   .option('--preview-only', '仅预览，不执行删除')
+  .option('--cleanup-only', '仅执行收尾清理（清理远程引用和垃圾回收）')
   .option('--yes', '跳过确认，直接执行删除')
   .option('--verbose', '显示详细的预览信息（不折叠）')
   .action(async (options) => {
     try {
+      // 如果只是收尾清理模式，直接执行
+      if (options.cleanupOnly) {
+        console.log(chalk.blue.bold("🧹 Git 收尾清理工具\n"));
+        
+        // 自动查找配置文件
+        const configPath = options.config || ConfigManager.findConfigFile();
+        const configManager = new ConfigManager(configPath);
+        const config = configManager.getConfig(options);
+        
+        const previewer = new Previewer(config);
+        
+        console.log(chalk.yellow('🧹 开始执行收尾清理...'));
+        await previewer.performCleanup();
+        console.log(chalk.green('✅ 收尾清理完成'));
+        return;
+      }
+      
+      // 验证清理目标
+      const cleanTargets = validateCleanTargets(options.cleanTargets.split(',').map(t => t.trim()));
+      
       // 自动查找配置文件
       const configPath = options.config || ConfigManager.findConfigFile();
       const configManager = new ConfigManager(configPath);
       const config = configManager.getConfig(options);
+      
+      // 更新配置中的清理目标
+      config.cleanTargets = cleanTargets;
       
       console.log(chalk.blue.bold("🧹 Git 分支清理配置信息\n"));
       
@@ -69,13 +135,19 @@ program
       const remoteBranches = await previewer.getRemoteBranchesToClean();
       const tags = await previewer.getTagsToClean();
       
-      if (localBranches.length === 0 && remoteBranches.length === 0 && tags.length === 0) {
+      // 根据清理目标过滤预览内容
+      const filteredLocalBranches = config.cleanTargets.includes('local-branches') ? localBranches : [];
+      const filteredRemoteBranches = config.cleanTargets.includes('remote-branches') ? remoteBranches : [];
+      const filteredTags = config.cleanTargets.includes('local-tags') || config.cleanTargets.includes('remote-tags') ? tags : [];
+      
+      // 检查是否有需要清理的内容（基于过滤后的结果）
+      if (filteredLocalBranches.length === 0 && filteredRemoteBranches.length === 0 && filteredTags.length === 0) {
         console.log(chalk.green('✅ 没有需要清理的分支或标签'));
         return;
       }
       
       // 显示预览内容（带折叠功能）
-      displayPreviewContent(localBranches, remoteBranches, tags, options.verbose);
+      displayPreviewContent(filteredLocalBranches, filteredRemoteBranches, filteredTags, options.verbose);
       
       // 如果只是预览模式，直接退出
       if (options.previewOnly) {
@@ -105,34 +177,32 @@ program
       
       const cleanSpinner = ora('正在清理分支和标签...').start();
       
-      try {
-        // 收集所有清理结果
-        const allResults = {
-          localBranches: { successCount: 0, failedCount: 0, failedItems: [] },
-          remoteBranches: { successCount: 0, failedCount: 0, failedItems: [] },
-          tags: { successCount: 0, failedCount: 0, failedItems: [] }
-        };
-        
-        // 清理本地分支
-        if (localBranches.length > 0) {
-          const result = await branchCleaner.cleanLocalBranches(localBranches);
-          allResults.localBranches = result;
-        }
-        
-        // 清理远程分支
-        if (remoteBranches.length > 0) {
-          const result = await branchCleaner.cleanRemoteBranches(remoteBranches);
-          allResults.remoteBranches = result;
-        }
-        
-        // 清理标签
-        if (tags.length > 0) {
-          const result = await tagCleaner.cleanTags(tags);
-          if (result && !result.failedItems && result.failedTags) {
-            result.failedItems = result.failedTags;
+        try {
+          // 收集所有清理结果
+          const allResults = {
+            localBranches: { successCount: 0, failedCount: 0, failedItems: [] },
+            remoteBranches: { successCount: 0, failedCount: 0, failedItems: [] },
+            tags: { successCount: 0, failedCount: 0, failedItems: [] }
+          };
+
+          // 根据清理目标执行清理
+          if (config.cleanTargets.includes('local-branches') && filteredLocalBranches.length > 0) {
+            const result = await branchCleaner.cleanLocalBranches(filteredLocalBranches);
+            allResults.localBranches = result;
           }
-          allResults.tags = result;
-        }
+
+          if (config.cleanTargets.includes('remote-branches') && filteredRemoteBranches.length > 0) {
+            const result = await branchCleaner.cleanRemoteBranches(filteredRemoteBranches);
+            allResults.remoteBranches = result;
+          }
+
+          if ((config.cleanTargets.includes('local-tags') || config.cleanTargets.includes('remote-tags')) && filteredTags.length > 0) {
+            const result = await tagCleaner.cleanTags(filteredTags);
+            if (result && !result.failedItems && result.failedTags) {
+              result.failedItems = result.failedTags;
+            }
+            allResults.tags = result;
+          }
         
         // 执行收尾操作
         await previewer.performCleanup();

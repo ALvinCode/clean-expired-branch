@@ -14,6 +14,8 @@
 - 📊 **统计对比**: 显示清理前后的仓库统计信息对比
 - ⚙️ **灵活配置**: 支持命令行参数和配置文件两种配置方式
 - 🎯 **强制删除**: 支持强制删除特定分支，即使它们在保护列表中
+- 🎯 **选择性清理**: 支持单独清理本地分支、远程分支、本地标签、远程标签
+- 🧹 **收尾清理**: 支持单独执行收尾清理（清理远程引用和垃圾回收）
 - 🌍 **全局安装**: 支持全局安装，在任何 Git 仓库中使用 `ceb` 命令
 - 🔍 **自动识别**: 自动识别 Git 项目，非 Git 项目会提示错误
 
@@ -63,6 +65,13 @@ ceb --protected "production,staging,master,main"
 # 指定强制删除的分支（注意：无法绕过服务器端保护）
 ceb --force-delete "temp-*,old-*"
 
+# 指定清理目标（支持简写）
+ceb --clean-targets local-branches,remote-tags
+ceb -t lb,rt
+
+# 仅执行收尾清理
+ceb --cleanup-only
+
 # 指定配置文件路径
 ceb --config ./my-config.json
 ```
@@ -89,7 +98,8 @@ ceb --config ./my-config.json
   "remoteName": "origin",
   "dryRun": false,
   "includeTags": true,
-  "cleanupAfterDelete": true
+  "cleanupAfterDelete": true,
+  "cleanTargets": ["all"]
 }
 ```
 
@@ -114,6 +124,19 @@ ceb --config ./my-config.json
 | `dryRun` | boolean | false | 仅预览模式 |
 | `includeTags` | boolean | true | 是否包含标签清理 |
 | `cleanupAfterDelete` | boolean | true | 删除后是否执行收尾清理 |
+| `cleanTargets` | array | ["all"] | 指定清理目标 |
+
+### 清理目标选项
+
+`cleanTargets` 参数支持以下值（支持完整名称和简写）：
+
+| 完整名称 | 简写 | 说明 |
+|----------|------|------|
+| `local-branches` | `lb` | 本地分支 |
+| `remote-branches` | `rb` | 远程分支 |
+| `local-tags` | `lt` | 本地标签 |
+| `remote-tags` | `rt` | 远程标签 |
+| `all` | - | 全部（默认） |
 
 ## 使用示例
 
@@ -123,19 +146,53 @@ ceb --config ./my-config.json
 ceb --days 30
 ```
 
-### 示例2: 保护特定分支，强制删除其他分支
+### 示例2: 只清理本地分支
+
+```bash
+ceb --clean-targets local-branches
+# 或使用简写
+ceb -t lb
+```
+
+### 示例3: 只清理远程分支和标签
+
+```bash
+ceb --clean-targets remote-branches,remote-tags
+# 或使用简写
+ceb -t rb,rt
+```
+
+### 示例4: 混合使用完整名称和简写
+
+```bash
+ceb --clean-targets lb,remote-tags,lt
+```
+
+### 示例5: 保护特定分支，强制删除其他分支
 
 ```bash
 ceb --protected "main,develop" --force-delete "feature-*,hotfix-*"
 ```
 
-### 示例3: 仅预览，不执行删除
+### 示例6: 仅预览，不执行删除
 
 ```bash
 ceb --preview-only
 ```
 
-### 示例4: 在非Git目录中运行
+### 示例7: 仅执行收尾清理
+
+```bash
+ceb --cleanup-only
+```
+
+### 示例8: 跳过确认直接执行
+
+```bash
+ceb --yes --days 90
+```
+
+### 示例9: 在非Git目录中运行
 
 ```bash
 $ ceb
@@ -183,6 +240,7 @@ $ ceb
 - **预览模式**: 默认会显示所有即将删除的分支和标签
 - **确认机制**: 需要用户手动确认才会执行删除操作
 - **保护列表**: 重要分支默认受保护，不会被误删
+- **选择性清理**: 支持精确控制要清理的目标类型，避免误删
 - **错误处理**: 删除过程中出现错误会立即停止并提示
 - **Git 检测**: 自动检测当前目录是否为 Git 仓库，非 Git 项目会提示错误
 - **自动定位**: 自动切换到 Git 仓库根目录执行清理
@@ -193,12 +251,36 @@ $ ceb
 2. **权限要求**: 删除远程分支需要相应的推送权限
 3. **网络连接**: 删除远程分支和标签需要网络连接
 4. **团队协作**: 在团队项目中使用前请与团队成员沟通
-5. **全局安装**: 建议全局安装以便在任何 Git 仓库中使用
-6. **配置文件**: 可以在项目根目录创建配置文件来自定义清理规则
+5. **选择性清理**: 使用 `--clean-targets` 参数可以精确控制要清理的目标类型
+6. **全局安装**: 建议全局安装以便在任何 Git 仓库中使用
+7. **配置文件**: 可以在项目根目录创建配置文件来自定义清理规则
 
 ## 故障排除
 
 ### 常见问题
+
+**Q: 如何只清理特定类型的分支或标签？**
+A: 使用 `--clean-targets` 参数，支持以下选项：
+
+- `local-branches` 或 `lb` - 只清理本地分支
+- `remote-branches` 或 `rb` - 只清理远程分支
+- `local-tags` 或 `lt` - 只清理本地标签
+- `remote-tags` 或 `rt` - 只清理远程标签
+- `all` - 清理所有（默认）
+
+示例：`ceb -t lb,rt` 只清理本地分支和远程标签
+
+**Q: 如何单独执行收尾清理？**
+A: 使用 `--cleanup-only` 参数可以单独执行收尾清理操作：
+
+```bash
+ceb --cleanup-only
+```
+
+这会执行以下操作：
+
+- 清理远程引用（`git fetch origin --prune --prune-tags`）
+- 执行垃圾回收（`git gc --prune=now --aggressive`）
 
 **Q: 提示权限不足**
 A: 确保您有删除远程分支的权限，或者联系仓库管理员
