@@ -405,17 +405,17 @@ function groupItemsByDate(items, type) {
 
 // 显示清理结果摘要
 function displayCleanupResults(allResults) {
-  const totalSuccess = allResults.localBranches.successCount + 
-                      allResults.remoteBranches.successCount + 
+  const totalSuccess = allResults.localBranches.successCount +
+                      allResults.remoteBranches.successCount +
                       allResults.tags.successCount;
-  const totalFailed = allResults.localBranches.failedCount + 
-                     allResults.remoteBranches.failedCount + 
+  const totalFailed = allResults.localBranches.failedCount +
+                     allResults.remoteBranches.failedCount +
                      allResults.tags.failedCount;
-  
+
   console.log(chalk.cyan('\n📊 清理结果摘要:'));
   console.log(`   ✅ 成功: ${totalSuccess} 个`);
   console.log(`   ❌ 失败: ${totalFailed} 个`);
-  
+
   // 显示各类别的详细结果
   if (allResults.localBranches.successCount > 0 || allResults.localBranches.failedCount > 0) {
     console.log(chalk.green(`   🗂️  本地分支: ${allResults.localBranches.successCount} 成功, ${allResults.localBranches.failedCount} 失败`));
@@ -426,43 +426,96 @@ function displayCleanupResults(allResults) {
   if (allResults.tags.successCount > 0 || allResults.tags.failedCount > 0) {
     console.log(chalk.green(`   🏷️  标签: ${allResults.tags.successCount} 成功, ${allResults.tags.failedCount} 失败`));
   }
-  
-  // 显示失败详情
+
+  // 显示失败详情 - 按类别和错误类型分组
   if (totalFailed > 0) {
-    console.log(chalk.red('\n❌ 删除失败的项目:'));
-    
+    console.log(chalk.red('\n❌ 删除失败的项目详情:'));
+
     // 本地分支失败
     if (allResults.localBranches.failedItems.length > 0) {
-      console.log(chalk.red('\n   🗂️  本地分支:'));
-      allResults.localBranches.failedItems.forEach(item => {
-        console.log(`      - ${item.name}: ${item.error}`);
-      });
+      console.log(chalk.red('\n   🗂️  本地分支失败:'));
+      displayGroupedErrors(allResults.localBranches.failedItems, '本地分支');
     }
-    
+
     // 远程分支失败
     if (allResults.remoteBranches.failedItems.length > 0) {
-      console.log(chalk.red('\n   🌐 远程分支:'));
-      allResults.remoteBranches.failedItems.forEach(item => {
-        console.log(`      - ${item.name}: ${item.error}`);
-        if (item.error.includes('protected') || item.error.includes('pre-receive hook declined')) {
-          console.log(chalk.yellow(`        💡 提示: 可能是受保护分支，需要通过 Web 界面删除`));
-        }
-      });
+      console.log(chalk.red('\n   🌐 远程分支失败:'));
+      displayGroupedErrors(allResults.remoteBranches.failedItems, '远程分支');
     }
-    
+
     // 标签失败
     if (allResults.tags.failedItems.length > 0) {
-      console.log(chalk.red('\n   🏷️  标签:'));
-      allResults.tags.failedItems.forEach(item => {
-        console.log(`      - ${item.name}: ${item.error}`);
-      });
+      console.log(chalk.red('\n   🏷️  标签失败:'));
+      displayGroupedErrors(allResults.tags.failedItems, '标签');
     }
-    
+
     console.log(chalk.yellow('\n💡 解决建议:'));
     console.log(`   1. 检查失败项目是否正在被使用`);
     console.log(`   2. 确认您有删除权限`);
     console.log(`   3. 受保护分支/标签需要通过 Web 界面删除`);
   }
+}
+
+// 显示分组后的错误信息
+function displayGroupedErrors(failedItems, type) {
+  const errorGroups = new Map();
+  
+  // 按错误类型分组
+  failedItems.forEach(item => {
+    const errorKey = normalizeErrorForDisplay(item.error);
+    if (!errorGroups.has(errorKey)) {
+      errorGroups.set(errorKey, []);
+    }
+    errorGroups.get(errorKey).push(item.name);
+  });
+  
+  // 显示分组后的错误
+  for (const [errorKey, itemNames] of errorGroups) {
+    const namesStr = itemNames.length > 3 
+      ? `${itemNames.slice(0, 3).join(', ')} 等 ${itemNames.length} 个${type}`
+      : `${itemNames.join(', ')}`;
+    console.log(chalk.red(`      ${namesStr}: ${errorKey}`));
+  }
+}
+
+// 标准化错误信息用于显示
+function normalizeErrorForDisplay(errorMessage) {
+  let normalized = errorMessage;
+  
+  // 处理 GitLab 保护分支/标签错误
+  if (normalized.includes('GitLab: You can only delete protected')) {
+    return '受保护项目，需要通过 Web 界面删除';
+  }
+  
+  // 处理 pre-receive hook 错误
+  if (normalized.includes('pre-receive hook declined')) {
+    return 'pre-receive hook 拒绝删除';
+  }
+  
+  // 处理网络连接错误
+  if (normalized.includes('Connection refused') || normalized.includes('timeout')) {
+    return '网络连接失败';
+  }
+  
+  // 处理权限错误
+  if (normalized.includes('Permission denied') || normalized.includes('not permitted')) {
+    return '权限不足';
+  }
+  
+  // 处理不存在错误
+  if (normalized.includes('not found') || normalized.includes('does not exist')) {
+    return '项目不存在';
+  }
+  
+  // 处理其他常见错误
+  if (normalized.includes('Command failed')) {
+    // 提取第一行作为主要错误信息
+    const firstLine = normalized.split('\n')[0];
+    return firstLine.replace(/Command failed: git.*?--delete\s+"[^"]*"/, 'Command failed: git push --delete');
+  }
+  
+  // 默认返回前100个字符
+  return normalized.length > 100 ? normalized.substring(0, 100) + '...' : normalized;
 }
 
 // 如果直接运行此文件，则解析命令行参数
