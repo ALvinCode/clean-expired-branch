@@ -77,169 +77,221 @@ program
       // 如果只是收尾清理模式，直接执行
       if (options.cleanupOnly) {
         console.log(chalk.blue.bold("🧹 Git 收尾清理工具\n"));
-        
+
         // 自动查找配置文件
         const configPath = options.config || ConfigManager.findConfigFile();
         const configManager = new ConfigManager(configPath);
         const config = configManager.getConfig(options);
-        
+
         const previewer = new Previewer(config);
-        
-        console.log(chalk.yellow('🧹 开始执行收尾清理...'));
+
+        console.log(chalk.yellow("🧹 开始执行收尾清理..."));
         await previewer.performCleanup();
-        console.log(chalk.green('✅ 收尾清理完成'));
+        console.log(chalk.green("✅ 收尾清理完成"));
         return;
       }
-      
+
       // 验证清理目标
-      const cleanTargets = validateCleanTargets(options.cleanTargets.split(',').map(t => t.trim()));
-      
+      const cleanTargets = validateCleanTargets(
+        options.cleanTargets.split(",").map((t) => t.trim())
+      );
+
       // 自动查找配置文件
       const configPath = options.config || ConfigManager.findConfigFile();
       const configManager = new ConfigManager(configPath);
       const config = configManager.getConfig(options);
-      
+
       // 更新配置中的清理目标
       config.cleanTargets = cleanTargets;
-      
-      console.log(chalk.blue.bold("🧹 Git 分支清理配置信息\n"));
-      
+
       // 显示配置信息
-      console.log(chalk.yellow('📋 配置信息:'));
+      console.log(chalk.blue.bold("🧹 Git 分支清理配置信息"));
+      console.log(chalk.yellow("📋 配置信息:"));
       console.log(`   清理时间范围: ${config.days} 天前`);
-      console.log(`   受保护分支: ${config.protectedBranches.join(', ')}`);
+      console.log(`   受保护分支: ${config.protectedBranches.join(", ")}`);
       if (config.forceDeleteBranches.length > 0) {
-        console.log(`   强制删除分支: ${config.forceDeleteBranches.join(', ')}`);
+        console.log(
+          `   强制删除分支: ${config.forceDeleteBranches.join(", ")}`
+        );
       }
-      console.log('');
-      
+      console.log("");
+
       const previewer = new Previewer(config);
       const branchCleaner = new BranchCleaner(config);
       const tagCleaner = new TagCleaner(config);
-      
+
       // 获取当前仓库统计信息
-      const spinner = ora('正在获取仓库统计信息...').start();
+      const spinner = ora("正在获取仓库统计信息...").start();
       const beforeStats = await previewer.getRepositoryStats();
-      spinner.succeed('仓库统计信息获取完成');
-      
-      console.log(chalk.cyan('\n📊 清理前统计:'));
+      console.log(chalk.blue.bold("💻 Git 仓库清理信息统计"));
+      console.log(chalk.cyan("📊 清理前统计:"));
       console.log(`   提交数: ${beforeStats.commits}`);
       console.log(`   分支数: ${beforeStats.branches}`);
       console.log(`   标签数: ${beforeStats.tags}`);
       console.log(`   存储大小: ${beforeStats.size}`);
-      
+
       // 预览要清理的内容
-      console.log(chalk.yellow('\n🔍 预览要清理的内容:'));
-      
+      console.log(chalk.blue.bold("\n🔍 预览要清理的内容:"));
       const localBranches = await previewer.getLocalBranchesToClean();
       const remoteBranches = await previewer.getRemoteBranchesToClean();
       const tags = await previewer.getTagsToClean();
-      
+
       // 根据清理目标过滤预览内容
-      const filteredLocalBranches = config.cleanTargets.includes('local-branches') ? localBranches : [];
-      const filteredRemoteBranches = config.cleanTargets.includes('remote-branches') ? remoteBranches : [];
-      const filteredTags = config.cleanTargets.includes('local-tags') || config.cleanTargets.includes('remote-tags') ? tags : [];
-      
+      const filteredLocalBranches = config.cleanTargets.includes(
+        "local-branches"
+      )
+        ? localBranches
+        : [];
+      const filteredRemoteBranches = config.cleanTargets.includes(
+        "remote-branches"
+      )
+        ? remoteBranches
+        : [];
+      const filteredTags =
+        config.cleanTargets.includes("local-tags") ||
+        config.cleanTargets.includes("remote-tags")
+          ? tags
+          : [];
+
       // 检查是否有需要清理的内容（基于过滤后的结果）
-      if (filteredLocalBranches.length === 0 && filteredRemoteBranches.length === 0 && filteredTags.length === 0) {
-        console.log(chalk.green('✅ 没有需要清理的分支或标签'));
+      if (
+        filteredLocalBranches.length === 0 &&
+        filteredRemoteBranches.length === 0 &&
+        filteredTags.length === 0
+      ) {
+        console.log(chalk.green("✅ 没有需要清理的分支或标签"));
         return;
       }
-      
+
       // 显示预览内容（带折叠功能）
-      displayPreviewContent(filteredLocalBranches, filteredRemoteBranches, filteredTags, options.verbose);
-      
+      displayPreviewContent(
+        filteredLocalBranches,
+        filteredRemoteBranches,
+        filteredTags,
+        options.verbose
+      );
+
       // 如果只是预览模式，直接退出
       if (options.previewOnly) {
-        console.log(chalk.yellow('\n⚠️  预览模式，未执行删除操作'));
+        console.log(chalk.yellow("\n⚠️  预览模式，未执行删除操作"));
         return;
       }
-      
+
       // 确认删除
       if (!options.yes) {
         const { confirm } = await inquirer.prompt([
           {
-            type: 'confirm',
-            name: 'confirm',
-            message: '确认要执行删除操作吗？',
-            default: false
-          }
+            type: "confirm",
+            name: "confirm",
+            message: "确认要执行删除操作吗？",
+            default: false,
+          },
         ]);
-        
+
         if (!confirm) {
-          console.log(chalk.yellow('❌ 操作已取消'));
+          console.log(chalk.yellow("❌ 操作已取消"));
           return;
         }
       }
-      
+
       // 执行清理
-      console.log(chalk.red('\n🗑️  开始执行清理...'));
-      
-      const cleanSpinner = ora('正在清理分支和标签...').start();
-      
-        try {
-          // 收集所有清理结果
-          const allResults = {
-            localBranches: { successCount: 0, failedCount: 0, failedItems: [] },
-            remoteBranches: { successCount: 0, failedCount: 0, failedItems: [] },
-            tags: { successCount: 0, failedCount: 0, failedItems: [] }
-          };
+      console.log(chalk.red("\n🗑️  开始执行清理..."));
 
-          // 根据清理目标执行清理
-          if (config.cleanTargets.includes('local-branches') && filteredLocalBranches.length > 0) {
-            const result = await branchCleaner.cleanLocalBranches(filteredLocalBranches);
-            allResults.localBranches = result;
-          }
+      const cleanSpinner = ora("正在清理分支和标签...").start();
 
-          if (config.cleanTargets.includes('remote-branches') && filteredRemoteBranches.length > 0) {
-            const result = await branchCleaner.cleanRemoteBranches(filteredRemoteBranches);
-            allResults.remoteBranches = result;
-          }
+      try {
+        // 收集所有清理结果
+        const allResults = {
+          localBranches: { successCount: 0, failedCount: 0, failedItems: [] },
+          remoteBranches: { successCount: 0, failedCount: 0, failedItems: [] },
+          tags: { successCount: 0, failedCount: 0, failedItems: [] },
+        };
 
-          if ((config.cleanTargets.includes('local-tags') || config.cleanTargets.includes('remote-tags')) && filteredTags.length > 0) {
-            const result = await tagCleaner.cleanTags(filteredTags);
-            if (result && !result.failedItems && result.failedTags) {
-              result.failedItems = result.failedTags;
-            }
-            allResults.tags = result;
+        // 根据清理目标执行清理
+        if (
+          config.cleanTargets.includes("local-branches") &&
+          filteredLocalBranches.length > 0
+        ) {
+          const result = await branchCleaner.cleanLocalBranches(
+            filteredLocalBranches
+          );
+          allResults.localBranches = result;
+        }
+
+        if (
+          config.cleanTargets.includes("remote-branches") &&
+          filteredRemoteBranches.length > 0
+        ) {
+          const result = await branchCleaner.cleanRemoteBranches(
+            filteredRemoteBranches
+          );
+          allResults.remoteBranches = result;
+        }
+
+        if (
+          (config.cleanTargets.includes("local-tags") ||
+            config.cleanTargets.includes("remote-tags")) &&
+          filteredTags.length > 0
+        ) {
+          const result = await tagCleaner.cleanTags(filteredTags);
+          if (result && !result.failedItems && result.failedTags) {
+            result.failedItems = result.failedTags;
           }
-        
+          allResults.tags = result;
+        }
+
         // 执行收尾操作
         await previewer.performCleanup();
-        
-        cleanSpinner.succeed('清理完成');
-        
+
+        cleanSpinner.succeed("清理完成");
+
         // 显示清理结果摘要（兼容 tags 结果字段名）
         const normalized = {
-          localBranches: allResults.localBranches || { successCount: 0, failedCount: 0, failedItems: [] },
-          remoteBranches: allResults.remoteBranches || { successCount: 0, failedCount: 0, failedItems: [] },
-          tags: allResults.tags || { successCount: 0, failedCount: 0, failedItems: [] }
+          localBranches: allResults.localBranches || {
+            successCount: 0,
+            failedCount: 0,
+            failedItems: [],
+          },
+          remoteBranches: allResults.remoteBranches || {
+            successCount: 0,
+            failedCount: 0,
+            failedItems: [],
+          },
+          tags: allResults.tags || {
+            successCount: 0,
+            failedCount: 0,
+            failedItems: [],
+          },
         };
-        if (normalized.tags && !normalized.tags.failedItems && normalized.tags.failedTags) {
+        if (
+          normalized.tags &&
+          !normalized.tags.failedItems &&
+          normalized.tags.failedTags
+        ) {
           normalized.tags.failedItems = normalized.tags.failedTags;
         }
         displayCleanupResults(normalized);
-        
+
         // 获取清理后的统计信息
         const afterStats = await previewer.getRepositoryStats();
-        
-        console.log(chalk.green('\n✅ 清理完成！'));
-        console.log(chalk.cyan('\n📊 清理后统计:'));
+
+        console.log(chalk.green("\n✅ 清理完成！"));
+        console.log(chalk.cyan("\n📊 清理后统计:"));
         console.log(`   提交数: ${afterStats.commits}`);
         console.log(`   分支数: ${afterStats.branches}`);
         console.log(`   标签数: ${afterStats.tags}`);
         console.log(`   存储大小: ${afterStats.size}`);
-        
-        console.log(chalk.cyan('\n📈 清理效果对比:'));
-        console.log(`   分支减少: ${beforeStats.branches - afterStats.branches} 个`);
+
+        console.log(chalk.cyan("\n📈 清理效果对比:"));
+        console.log(
+          `   分支减少: ${beforeStats.branches - afterStats.branches} 个`
+        );
         console.log(`   标签减少: ${beforeStats.tags - afterStats.tags} 个`);
-        
       } catch (error) {
-        cleanSpinner.fail('清理过程中出现错误');
-        console.error(chalk.red('❌ 错误:'), error.message);
+        cleanSpinner.fail("清理过程中出现错误");
+        console.error(chalk.red("❌ 错误:"), error.message);
         process.exit(1);
       }
-      
     } catch (error) {
       console.error(chalk.red('❌ 程序执行错误:'), error.message);
       process.exit(1);
