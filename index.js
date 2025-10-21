@@ -123,6 +123,8 @@ program
       // 获取当前仓库统计信息
       const spinner = ora("正在获取仓库统计信息...").start();
       const beforeStats = await previewer.getRepositoryStats();
+      spinner.succeed("仓库统计信息获取完成");
+      
       console.log(chalk.blue.bold("💻 Git 仓库清理信息统计"));
       console.log(chalk.cyan("📊 清理前统计:"));
       console.log(`   提交数: ${beforeStats.commits}`);
@@ -273,7 +275,9 @@ program
         displayCleanupResults(normalized);
 
         // 获取清理后的统计信息
+        const afterSpinner = ora("正在获取清理后统计信息...").start();
         const afterStats = await previewer.getRepositoryStats();
+        afterSpinner.succeed("清理后统计信息获取完成");
 
         console.log(chalk.green("\n✅ 清理完成！"));
         console.log(chalk.cyan("\n📊 清理后统计:"));
