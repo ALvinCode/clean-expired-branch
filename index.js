@@ -275,6 +275,7 @@ program
         displayCleanupResults(normalized);
 
         // 获取清理后的统计信息
+        console.log("\n");
         const afterSpinner = ora("正在获取清理后统计信息...").start();
         const afterStats = await previewer.getRepositoryStats();
         afterSpinner.succeed("清理后统计信息获取完成");
@@ -288,9 +289,12 @@ program
 
         console.log(chalk.cyan("\n📈 清理效果对比:"));
         console.log(
-          `   分支减少: ${beforeStats.branches - afterStats.branches} 个`
+          `   分支数量: ${beforeStats.branches} -> ${afterStats.branches} 个`
         );
-        console.log(`   标签减少: ${beforeStats.tags - afterStats.tags} 个`);
+        console.log(`   标签数量: ${beforeStats.tags} -> ${afterStats.tags} 个`);
+        
+        // 显示存储对比
+        console.log(`   存储大小: ${beforeStats.size} → ${afterStats.size}`);
       } catch (error) {
         cleanSpinner.fail("清理过程中出现错误");
         console.error(chalk.red("❌ 错误:"), error.message);
