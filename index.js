@@ -132,11 +132,14 @@ program
       console.log(`   标签数: ${beforeStats.tags}`);
       console.log(`   存储大小: ${beforeStats.size}`);
 
-      // 预览要清理的内容
+      // 并行获取要清理的内容
       console.log(chalk.blue.bold("\n🔍 预览要清理的内容:"));
-      const localBranches = await previewer.getLocalBranchesToClean();
-      const remoteBranches = await previewer.getRemoteBranchesToClean();
-      const tags = await previewer.getTagsToClean();
+      
+      const [localBranches, remoteBranches, tags] = await Promise.all([
+        previewer.getLocalBranchesToClean(),
+        previewer.getRemoteBranchesToClean(),
+        previewer.getTagsToClean()
+      ]);
 
       // 根据清理目标过滤预览内容
       const filteredLocalBranches = config.cleanTargets.includes(
