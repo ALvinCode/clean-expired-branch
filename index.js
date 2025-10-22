@@ -122,15 +122,12 @@ program
       const tagCleaner = new TagCleaner(config);
 
       // 获取当前仓库统计信息
-      const spinner = ora("正在获取仓库统计信息...").start();
       const beforeStats = await previewer.getRepositoryStats();
-      spinner.succeed("仓库统计信息获取完成");
       
-        console.log(chalk.blue.bold("📊 仓库统计信息"));
-        console.log(`提交数: ${beforeStats.commits} | 分支数: ${beforeStats.branches} | 标签数: ${beforeStats.tags} | 存储大小: ${beforeStats.size}`);
+      console.log(chalk.blue.bold("📊 仓库统计信息"));
+      console.log(`提交数: ${beforeStats.commits} | 分支数: ${beforeStats.branches} | 标签数: ${beforeStats.tags} | 存储大小: ${beforeStats.size}`);
 
       // 并行获取要清理的内容
-      console.log(chalk.blue.bold("\n🔍 清理预览:"));
       
       const [localBranches, remoteBranches, tags] = await Promise.all([
         previewer.getLocalBranchesToClean(),
@@ -155,16 +152,15 @@ program
           ? tags
           : [];
 
+      const totalItems = filteredLocalBranches.length + filteredRemoteBranches.length + filteredTags.length;
+
       // 检查是否有需要清理的内容（基于过滤后的结果）
-      if (
-        filteredLocalBranches.length === 0 &&
-        filteredRemoteBranches.length === 0 &&
-        filteredTags.length === 0
-      ) {
+      if (totalItems === 0) {
         console.log(chalk.green("✅ 没有需要清理的分支或标签"));
         return;
       }
 
+      console.log(chalk.blue.bold(`\n🔍 清理预览 (共 ${totalItems} 项):`));
       // 显示预览内容（带折叠功能）
       displayPreviewContent(
         filteredLocalBranches,
@@ -272,8 +268,6 @@ program
         // 获取清理后的统计信息
         const afterStats = await previewer.getRepositoryStats();
 
-        console.log(chalk.green("\n✅ 清理完成！"));
-        
         // 使用表格显示清理前后对比
         console.log(chalk.cyan("\n📊 清理效果对比:"));
         const comparisonTable = new Table({
@@ -329,16 +323,14 @@ function displayPreviewContent(localBranches, remoteBranches, tags, verbose = fa
     return;
   }
   
-  console.log(chalk.yellow(`📋 清理摘要 (共 ${totalItems} 项):`));
-  
   if (localBranches.length > 0) {
-    console.log(chalk.red(`   🗂️  本地分支: ${localBranches.length} 个`));
+    console.log(chalk.red(`   本地分支: ${localBranches.length} 个`));
   }
   if (remoteBranches.length > 0) {
-    console.log(chalk.red(`   🌐 远程分支: ${remoteBranches.length} 个`));
+    console.log(chalk.red(`   远程分支: ${remoteBranches.length} 个`));
   }
   if (tags.length > 0) {
-    console.log(chalk.red(`   🏷️  标签: ${tags.length} 个`));
+    console.log(chalk.red(`   标签: ${tags.length} 个`));
   }
   
   console.log(chalk.gray('\n💡 使用 --verbose 查看详细信息\n'));
