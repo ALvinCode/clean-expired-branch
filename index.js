@@ -10,6 +10,7 @@ const BranchCleaner = require('./lib/branchCleaner');
 const TagCleaner = require('./lib/tagCleaner');
 const Previewer = require('./lib/previewer');
 const ConfigManager = require('./lib/configManager');
+const Table = require('cli-table3');
 
 // 清理目标映射和验证
 const CLEAN_TARGETS = {
@@ -125,15 +126,11 @@ program
       const beforeStats = await previewer.getRepositoryStats();
       spinner.succeed("仓库统计信息获取完成");
       
-      console.log(chalk.blue.bold("💻 Git 仓库清理信息统计"));
-      console.log(chalk.cyan("📊 清理前统计:"));
-      console.log(`   提交数: ${beforeStats.commits}`);
-      console.log(`   分支数: ${beforeStats.branches}`);
-      console.log(`   标签数: ${beforeStats.tags}`);
-      console.log(`   存储大小: ${beforeStats.size}`);
+        console.log(chalk.blue.bold("📊 仓库统计信息"));
+        console.log(`提交数: ${beforeStats.commits} | 分支数: ${beforeStats.branches} | 标签数: ${beforeStats.tags} | 存储大小: ${beforeStats.size}`);
 
       // 并行获取要清理的内容
-      console.log(chalk.blue.bold("\n🔍 预览要清理的内容:"));
+      console.log(chalk.blue.bold("\n🔍 清理预览:"));
       
       const [localBranches, remoteBranches, tags] = await Promise.all([
         previewer.getLocalBranchesToClean(),
@@ -200,17 +197,14 @@ program
       }
 
       // 执行清理
-      console.log(chalk.red("\n🗑️  开始执行清理..."));
+        console.log(chalk.red("\n🗑️  开始执行清理..."));
 
-      const cleanSpinner = ora("正在清理分支和标签...").start();
-
-      try {
-        // 收集所有清理结果
-        const allResults = {
-          localBranches: { successCount: 0, failedCount: 0, failedItems: [] },
-          remoteBranches: { successCount: 0, failedCount: 0, failedItems: [] },
-          tags: { successCount: 0, failedCount: 0, failedItems: [] },
-        };
+        try {
+          const allResults = {
+            localBranches: { successCount: 0, failedCount: 0, failedItems: [] },
+            remoteBranches: { successCount: 0, failedCount: 0, failedItems: [] },
+            tags: { successCount: 0, failedCount: 0, failedItems: [] },
+          };
 
         // 根据清理目标执行清理
         if (
@@ -246,9 +240,7 @@ program
         }
 
         // 执行收尾操作
-        await previewer.performCleanup();
-
-        cleanSpinner.succeed("清理完成");
+          await previewer.performCleanup();
 
         // 显示清理结果摘要（兼容 tags 结果字段名）
         const normalized = {
@@ -278,31 +270,50 @@ program
         displayCleanupResults(normalized);
 
         // 获取清理后的统计信息
-        console.log("\n");
-        const afterSpinner = ora("正在获取清理后统计信息...").start();
         const afterStats = await previewer.getRepositoryStats();
-        afterSpinner.succeed("清理后统计信息获取完成");
 
         console.log(chalk.green("\n✅ 清理完成！"));
-        console.log(chalk.cyan("\n📊 清理后统计:"));
-        console.log(`   提交数: ${afterStats.commits}`);
-        console.log(`   分支数: ${afterStats.branches}`);
-        console.log(`   标签数: ${afterStats.tags}`);
-        console.log(`   存储大小: ${afterStats.size}`);
-
-        console.log(chalk.cyan("\n📈 清理效果对比:"));
-        console.log(
-          `   分支数量: ${beforeStats.branches} -> ${afterStats.branches} 个`
-        );
-        console.log(`   标签数量: ${beforeStats.tags} -> ${afterStats.tags} 个`);
         
-        // 显示存储对比
-        console.log(`   存储大小: ${beforeStats.size} → ${afterStats.size}`);
-      } catch (error) {
-        cleanSpinner.fail("清理过程中出现错误");
-        console.error(chalk.red("❌ 错误:"), error.message);
-        process.exit(1);
-      }
+        // 使用表格显示清理前后对比
+        console.log(chalk.cyan("\n📊 清理效果对比:"));
+        const comparisonTable = new Table({
+          head: ['项目', '清理前', '清理后', '变化'],
+          colWidths: [12, 15, 15, 15],
+          style: {
+            head: ['cyan'],
+            border: ['gray']
+          }
+        });
+        
+        // 计算变化
+        const branchChange = afterStats.branches - beforeStats.branches;
+        const tagChange = afterStats.tags - beforeStats.tags;
+        const sizeIncreased = parseSizeToBytes(afterStats.size) > parseSizeToBytes(beforeStats.size);
+        
+        comparisonTable.push(
+          ['提交数', beforeStats.commits.toString(), afterStats.commits.toString(), 
+           afterStats.commits - beforeStats.commits],
+          ['分支数', beforeStats.branches.toString(), afterStats.branches.toString(), 
+           branchChange > 0 ? `+${branchChange}` : branchChange.toString()],
+          ['标签数', beforeStats.tags.toString(), afterStats.tags.toString(), 
+           tagChange > 0 ? `+${tagChange}` : tagChange.toString()],
+          ['存储大小', beforeStats.size, afterStats.size, 
+           sizeIncreased ? chalk.yellow('临时增加') : chalk.green('已优化')]
+        );
+        
+        console.log(comparisonTable.toString());
+        
+        // 如果存储大小增加，显示说明
+        if (sizeIncreased) {
+          console.log(chalk.yellow('\n💡 存储大小说明:'));
+          console.log('   - 垃圾回收过程中可能暂时增加存储空间');
+          console.log('   - Git 会重新打包对象，优化存储结构');
+          console.log('   - 建议稍后再次运行 `git gc` 以获得最终优化效果');
+        }
+        } catch (error) {
+          console.error(chalk.red("❌ 清理过程中出现错误:"), error.message);
+          process.exit(1);
+        }
     } catch (error) {
       console.error(chalk.red('❌ 程序执行错误:'), error.message);
       process.exit(1);
@@ -313,14 +324,12 @@ program
 function displayPreviewContent(localBranches, remoteBranches, tags, verbose = false) {
   const totalItems = localBranches.length + remoteBranches.length + tags.length;
   
-  // 如果使用 --verbose 参数或总数量较少，直接显示
   if (verbose || totalItems <= 10) {
     displayItemsDirectly(localBranches, remoteBranches, tags);
     return;
   }
   
-  // 显示折叠的摘要信息
-  console.log(chalk.yellow(`📋 预览摘要 (共 ${totalItems} 项):`));
+  console.log(chalk.yellow(`📋 清理摘要 (共 ${totalItems} 项):`));
   
   if (localBranches.length > 0) {
     console.log(chalk.red(`   🗂️  本地分支: ${localBranches.length} 个`));
@@ -332,7 +341,7 @@ function displayPreviewContent(localBranches, remoteBranches, tags, verbose = fa
     console.log(chalk.red(`   🏷️  标签: ${tags.length} 个`));
   }
   
-  console.log(chalk.gray('\n💡 提示: 使用 --verbose 参数查看详细信息\n'));
+  console.log(chalk.gray('\n💡 使用 --verbose 查看详细信息\n'));
 }
 
 // 直接显示所有项目（无折叠）
@@ -412,38 +421,22 @@ function displayCleanupResults(allResults) {
                      allResults.remoteBranches.failedCount +
                      allResults.tags.failedCount;
 
-  console.log(chalk.cyan('\n📊 清理结果摘要:'));
-  console.log(`   ✅ 成功: ${totalSuccess} 个`);
-  console.log(`   ❌ 失败: ${totalFailed} 个`);
+  console.log(chalk.cyan('\n📊 清理结果:'));
+  console.log(`   ✅ 成功: ${totalSuccess} 个 | ❌ 失败: ${totalFailed} 个`);
 
-  // 显示各类别的详细结果
-  if (allResults.localBranches.successCount > 0 || allResults.localBranches.failedCount > 0) {
-    console.log(chalk.green(`   🗂️  本地分支: ${allResults.localBranches.successCount} 成功, ${allResults.localBranches.failedCount} 失败`));
-  }
-  if (allResults.remoteBranches.successCount > 0 || allResults.remoteBranches.failedCount > 0) {
-    console.log(chalk.green(`   🌐 远程分支: ${allResults.remoteBranches.successCount} 成功, ${allResults.remoteBranches.failedCount} 失败`));
-  }
-  if (allResults.tags.successCount > 0 || allResults.tags.failedCount > 0) {
-    console.log(chalk.green(`   🏷️  标签: ${allResults.tags.successCount} 成功, ${allResults.tags.failedCount} 失败`));
-  }
-
-  // 显示失败详情 - 按类别和错误类型分组
   if (totalFailed > 0) {
-    console.log(chalk.red('\n❌ 删除失败的项目详情:'));
+    console.log(chalk.red('\n❌ 删除失败的项目:'));
 
-    // 本地分支失败
     if (allResults.localBranches.failedItems.length > 0) {
       console.log(chalk.red('\n   🗂️  本地分支失败:'));
       displayGroupedErrors(allResults.localBranches.failedItems, '本地分支');
     }
 
-    // 远程分支失败
     if (allResults.remoteBranches.failedItems.length > 0) {
       console.log(chalk.red('\n   🌐 远程分支失败:'));
       displayGroupedErrors(allResults.remoteBranches.failedItems, '远程分支');
     }
 
-    // 标签失败
     if (allResults.tags.failedItems.length > 0) {
       console.log(chalk.red('\n   🏷️  标签失败:'));
       displayGroupedErrors(allResults.tags.failedItems, '标签');
@@ -516,6 +509,29 @@ function normalizeErrorForDisplay(errorMessage) {
   
   // 默认返回前100个字符
   return normalized.length > 100 ? normalized.substring(0, 100) + '...' : normalized;
+}
+
+function parseSizeToBytes(sizeStr) {
+  if (!sizeStr || sizeStr === '未知') return 0;
+  
+  const match = sizeStr.match(/^(\d+(?:\.\d+)?)\s*(KB|MB|GB|MiB|GiB)$/i);
+  if (!match) return 0;
+  
+  const value = parseFloat(match[1]);
+  const unit = match[2].toUpperCase();
+  
+  switch (unit) {
+    case 'KB':
+      return value * 1024;
+    case 'MB':
+    case 'MIB':
+      return value * 1024 * 1024;
+    case 'GB':
+    case 'GIB':
+      return value * 1024 * 1024 * 1024;
+    default:
+      return 0;
+  }
 }
 
 // 如果直接运行此文件，则解析命令行参数

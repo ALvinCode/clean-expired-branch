@@ -1,6 +1,6 @@
 {
   "name": "branch-clean",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "自动清理无用历史分支和标签的npm工具包",
   "main": "index.js",
   "bin": {
@@ -33,11 +33,12 @@
     "registry": "https://verdaccio.atomecorp.net/"
   },
   "dependencies": {
-    "commander": "^11.1.0",
     "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^11.1.0",
     "inquirer": "^8.2.6",
-    "ora": "^5.4.1",
-    "cli-progress": "^3.12.0"
+    "ora": "^5.4.1"
   },
   "engines": {
     "node": ">=14.0.0"
