@@ -73,6 +73,7 @@ program
   .option('--cleanup-only', '仅执行收尾清理（清理远程引用和垃圾回收）')
   .option('--yes', '跳过确认，直接执行删除')
   .option('--verbose', '显示详细的预览信息（不折叠）')
+  .option('--debug', '显示详细的错误信息')
   .action(async (options) => {
     try {
       // 如果只是收尾清理模式，直接执行
@@ -263,7 +264,7 @@ program
         ) {
           normalized.tags.failedItems = normalized.tags.failedTags;
         }
-        displayCleanupResults(normalized);
+        displayCleanupResults(normalized, options.debug);
 
         // 获取清理后的统计信息
         const afterStats = await previewer.getRepositoryStats();
@@ -405,7 +406,7 @@ function groupItemsByDate(items, type) {
 }
 
 // 显示清理结果摘要
-function displayCleanupResults(allResults) {
+function displayCleanupResults(allResults, debugMode = false) {
   const totalSuccess = allResults.localBranches.successCount +
                       allResults.remoteBranches.successCount +
                       allResults.tags.successCount;
@@ -421,28 +422,31 @@ function displayCleanupResults(allResults) {
 
     if (allResults.localBranches.failedItems.length > 0) {
       console.log(chalk.red('\n   🗂️  本地分支失败:'));
-      displayGroupedErrors(allResults.localBranches.failedItems, '本地分支');
+      displayGroupedErrors(allResults.localBranches.failedItems, '本地分支', debugMode);
     }
 
     if (allResults.remoteBranches.failedItems.length > 0) {
       console.log(chalk.red('\n   🌐 远程分支失败:'));
-      displayGroupedErrors(allResults.remoteBranches.failedItems, '远程分支');
+      displayGroupedErrors(allResults.remoteBranches.failedItems, '远程分支', debugMode);
     }
 
     if (allResults.tags.failedItems.length > 0) {
       console.log(chalk.red('\n   🏷️  标签失败:'));
-      displayGroupedErrors(allResults.tags.failedItems, '标签');
+      displayGroupedErrors(allResults.tags.failedItems, '标签', debugMode);
     }
 
     console.log(chalk.yellow('\n💡 解决建议:'));
     console.log(`   1. 检查失败项目是否正在被使用`);
     console.log(`   2. 确认您有删除权限`);
     console.log(`   3. 受保护分支/标签需要通过 Web 界面删除`);
+    if (!debugMode) {
+      console.log(`   4. 使用 --debug 参数查看详细错误信息`);
+    }
   }
 }
 
 // 显示分组后的错误信息
-function displayGroupedErrors(failedItems, type) {
+function displayGroupedErrors(failedItems, type, debugMode = false) {
   const errorGroups = new Map();
   
   // 按错误类型分组
@@ -460,6 +464,14 @@ function displayGroupedErrors(failedItems, type) {
       ? `${itemNames.slice(0, 3).join(', ')} 等 ${itemNames.length} 个${type}`
       : `${itemNames.join(', ')}`;
     console.log(chalk.red(`      ${namesStr}: ${errorKey}`));
+    
+    // 在调试模式下显示详细错误信息
+    if (debugMode && itemNames.length > 0) {
+      const sampleItem = failedItems.find(item => itemNames.includes(item.name));
+      if (sampleItem && sampleItem.error !== errorKey) {
+        console.log(chalk.gray(`        详细错误: ${sampleItem.error}`));
+      }
+    }
   }
 }
 

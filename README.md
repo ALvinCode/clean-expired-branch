@@ -74,6 +74,18 @@ ceb --cleanup-only
 
 # 指定配置文件路径
 ceb --config ./my-config.json
+
+# 仅预览，不执行删除
+ceb --preview-only
+
+# 跳过确认，直接执行删除
+ceb --yes
+
+# 显示详细的预览信息（不折叠）
+ceb --verbose
+
+# 显示详细的错误信息
+ceb --debug
 ```
 
 ### 配置文件
@@ -281,6 +293,18 @@ ceb --cleanup-only
 
 - 清理远程引用（`git fetch origin --prune --prune-tags`）
 - 执行垃圾回收（`git gc --prune=now --aggressive`）
+
+**Q: 如何查看详细的错误信息？**
+A: 使用 `--debug` 参数可以查看详细的错误信息：
+
+```bash
+ceb --debug
+```
+
+这会显示：
+- 具体的错误原因
+- 完整的错误消息
+- 帮助诊断删除失败的问题
 
 **Q: 为什么清理后存储大小反而增加了？**
 A: 这是正常现象，原因如下：
